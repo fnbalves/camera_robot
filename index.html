@@ -1,0 +1,328 @@
+<html>
+    <head>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 100dvw;
+                height: 100dvh;
+                touch-action: none;
+                overflow: hidden;
+                overscroll-behavior: none;
+            }
+
+            .control-panel {
+                display: flex;
+                flex-direction: column;
+                gap: 1em;
+                align-items: flex-start;
+                justify-content: flex-start;
+                height: 100dvh;
+                width: 100dvw;
+                
+                .camera-view {
+                    display: flex;
+                    flex-direction: row;
+                    align-items: center;
+                    justify-content: center;
+
+                    width: 100dvw;
+                    height: 80dvh;
+
+                    img {
+                        width: 100%;
+                        height: 100%;
+                        border-style: solid;
+                        border-width: 0.5em;
+                        border-radius: 0.5em;
+                        border-color: darkgray;
+                        user-select: none;
+                    }
+                }
+
+                .commands {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1em;
+                    align-items: center;
+                    justify-content: center;
+
+                    padding: 1em;
+
+                    height: 0.1dvh;
+                    width: 100dvw;
+
+                    .status-box {
+                        padding: 1em;
+                        background-color: lightgray;
+                        color: black;
+                        border-style: solid;
+                        border-width: 0.5em;
+                        border-color: darkgray;
+                        user-select: none;
+                    }
+
+                    .joystick {
+                        position: relative;
+                        background-color: aquamarine;
+                        border-color: black;
+                        border-style: solid;
+                        min-width: 100px;
+                        min-height: 100px;
+                        height: 100px;
+
+                        .cross {
+                            top: 0%;
+                            left: 0%;
+                            width: 100%;
+                            height: 100%;
+                            user-select: none;
+                            position: absolute;
+                        }
+
+                        .joystick-thumb {
+                            cursor: pointer;
+                            position: absolute;
+                            width: 20px;
+                            height: 20px;
+                            border-radius: 10px;
+                            background-color: black;
+
+                            top: calc(50% - 10px);
+                            left: calc(50% - 10px);
+                        }
+                    }
+                }
+            }
+        </style>
+        <script language='javascript'>
+            let joyClicked = false;
+            
+
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('initialized');
+
+                const espIp = '192.168.1.6';
+                const espStreamPort = '8000';
+                const websocketPort = '9000';
+                const streamUrl = `http://${espIp}:${espStreamPort}/image\\`; 
+                const websocketUrl = `ws://${espIp}:${websocketPort}/socket`;
+                const mainPadding = 5;
+
+                console.log('stream url', streamUrl);
+
+                const thumb = document.getElementById('joystick-thumb');
+                const thumbContainer = document.getElementById('joystick');
+                const camera = document.getElementById('camera');
+                const status = document.getElementById('status-box');
+
+                camera.setAttribute('src', streamUrl);
+
+                let websocket = null;
+                let websocketOpened = false;
+
+                const setStatus = (text) => {
+                    status.innerHTML = text;
+                }
+
+                const openWebsocket = () => {
+                    try{
+                        setStatus('Status: conectando....');
+                        websocket = new WebSocket(websocketUrl);
+                        
+                        websocket.onopen = (event) => {
+                            setStatus('Status: websocket conectado');
+                            websocketOpened = true;
+                        };
+
+                        // This triggers if the connection fails or an error occurs
+                        websocket.onerror = (error) => {
+                            setStatus('Status: erro no websocket');
+                            websocketOpened = false;
+                        };
+                    }catch(err) {
+                        console.log('Websocket failed!');
+                        websocket = null;
+                        websocketOpened = false;
+                    }
+                };
+
+                const setVerticalView = () => {
+                    console.log('SET VERTICAL VIEW');
+                    const panel = document.getElementById('control-panel');
+                    panel.style.setProperty('flex-direction', 'column');
+                    panel.style.setProperty('width', `${100 - mainPadding}dvw`);
+                    panel.style.setProperty('height', `${100 - mainPadding}dvh`);
+
+                    const camera = document.getElementById('camera-view');
+                    camera.style.setProperty('width', `${100 - mainPadding}dvw`);
+                    camera.style.setProperty('height', `${70 - mainPadding}dvh`);
+
+                    const controls = document.getElementById('commands');
+                    controls.style.setProperty('width', `${100 - mainPadding}dvw`);
+                    controls.style.setProperty('height', `${30 - mainPadding}dvw`);
+
+                    thumbContainer.style.setProperty('width', '15dvw');
+                    thumbContainer.style.setProperty('height', '15dvw');
+                    thumbContainer.style.setProperty('max-width', '15dvw');
+                    thumbContainer.style.setProperty('max-height', '15dvw');
+
+                    thumb.style.setProperty('width', '5dvw');
+                    thumb.style.setProperty('height', '5dvw');
+                    thumb.style.setProperty('border-radius', '2.5dvw');
+
+                    resetThumbPosition();
+                }
+
+                const setHorizontalView = () => {
+                    console.log('SET HORIZONTAL VIEW');
+                    const panel = document.getElementById('control-panel');
+                    panel.style.setProperty('flex-direction', 'row');
+                    panel.style.setProperty('width', `${100 - mainPadding}dvw`);
+                    panel.style.setProperty('height', `${100 - mainPadding}dvh`);
+
+                    const camera = document.getElementById('camera-view');
+                    camera.style.setProperty('width', `${70 - mainPadding}dvw`);
+                    camera.style.setProperty('height', `${100 - mainPadding}dvh`);
+
+                    const controls = document.getElementById('commands');
+                    controls.style.setProperty('width', `${30 - mainPadding}dvw`);
+                    controls.style.setProperty('height', `${100 - mainPadding}dvh`);
+
+                    thumbContainer.style.setProperty('width', '15dvw');
+                    thumbContainer.style.setProperty('height', '15dvw');
+                    thumbContainer.style.setProperty('max-width', '15dvw');
+                    thumbContainer.style.setProperty('max-height', '15dvw');
+
+                    thumb.style.setProperty('width', '5dvw');
+                    thumb.style.setProperty('height', '5dvw');
+                    thumb.style.setProperty('border-radius', '2.5dvw');
+
+                    resetThumbPosition();
+                }
+
+                const sendWebsocket = (data) => {
+                    console.log('Sending', data);
+                    if (websocketOpened) {
+                        try{
+                            websocket.send(data);
+                        }catch(err) {
+                            openWebsocket();
+                        }
+                    }
+                }
+
+
+                const resetThumbPosition = () => {
+                    const rect = thumbContainer.getBoundingClientRect();
+                    const thumbRect = thumb.getBoundingClientRect();
+
+                    thumb.style.setProperty('top', `calc(50% - ${thumbRect.width/2}px)`);
+                    thumb.style.setProperty('left', `calc(50% - ${thumbRect.height/2}px)`);
+
+                    sendWebsocket('X0Y0');
+                };
+
+                const vectorNorm = (vectX, vectY) => {
+                    return Math.sqrt(vectX*vectX + vectY*vectY);
+                }
+
+                const updatePosition = (eventX, eventY) => {
+                    const rect = thumbContainer.getBoundingClientRect();
+                    const thumbRect = thumb.getBoundingClientRect();
+                    const contX = rect.left + rect.width/2;
+                    const contY = rect.top + rect.height/2;
+
+                    const width = rect.width;
+                    const height = rect.height;
+
+                    let vectX = eventX - contX;
+                    let vectY = eventY - contY;
+
+                    const norm = vectorNorm(vectX, vectY);
+                    const maxNorm = Math.min(rect.height/2, rect.width/2);
+
+
+                    if (norm > maxNorm) {
+                        vectX = vectX*maxNorm/norm;
+                        vectY = vectY*maxNorm/norm;
+                    }
+
+                    const vectPercentX = vectX/maxNorm;
+                    const vectPercentY = vectY/maxNorm;
+
+                    if (joyClicked) {
+                        const strTop = `calc(50% ${vectY > 0 ? '+': '-'} ${Math.abs(vectY)}px - ${thumbRect.height/2}px)`;
+                        const strLeft = `calc(50% ${vectX > 0 ? '+': '-'} ${Math.abs(vectX)}px - ${thumbRect.width/2}px`;
+                        console.log('VECT PERCENT', vectPercentX, vectPercentY);
+
+                        thumb.style.setProperty('top', strTop);
+                        thumb.style.setProperty('left', strLeft);
+
+                        sendWebsocket(`X${vectPercentX.toFixed(2)}Y${vectPercentY.toFixed(2)}`);
+                    }
+                }
+
+                document.addEventListener('pointerdown', (event) => {
+                    const elem = document.elementFromPoint(event.clientX, event.clientY);
+                    if (elem === thumb) {
+                        joyClicked = true;
+                    }
+                });
+                document.addEventListener('pointerup', (event) => {
+                    joyClicked = false;
+                    resetThumbPosition();
+                });
+                document.addEventListener('pointermove', (event) => {
+                    updatePosition(event.clientX, event.clientY);
+                });
+
+                adjustOrientations = () => {
+                    if (!screen.orientation.type.includes('landscape')) {
+                        setVerticalView();
+                    } else {
+                        setHorizontalView();
+                    }
+                }
+                screen.orientation.addEventListener('change', () => {
+                    console.log(`Current orientation: ${screen.orientation.type}`);
+                    adjustOrientations();
+                });
+
+                adjustOrientations();
+                openWebsocket();
+                resetThumbPosition();
+            });
+        </script>
+    </head>
+    <body>
+        <div class='control-panel' id='control-panel'>
+            <div class='camera-view' id='camera-view'>
+                <img id='camera'>
+            </div>
+            <div class='commands' id='commands'>
+                <div class='status-box' id='status-box'>
+
+                </div>
+
+                <div class='joystick' id='joystick'>
+                    <svg class='cross' viewBox='0 0 100 100' style='background-color: white'>
+                        <circle cx='50' cy='50' r='50' style='stroke: red; fill: white'></circle>
+                        <line x1='0' y1='50' x2='100' y2='50' style='stroke: red'></line>
+                        <line x1='50' y1='0' x2='50' y2='100' style='stroke: red'></line>
+                    </svg>
+                    <div class='joystick-thumb' id='joystick-thumb'>
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </body>
+</html>
